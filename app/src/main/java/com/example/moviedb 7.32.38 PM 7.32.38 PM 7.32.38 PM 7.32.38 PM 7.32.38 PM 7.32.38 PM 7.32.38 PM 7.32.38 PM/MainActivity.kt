@@ -226,12 +226,14 @@ fun MovieDetailScreen(movieId: Long?, navController: NavHostController) {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Link to movie homepage (Opens in Browser)
+                // Visit Homepage
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(movie.homepage))
-                        context.startActivity(intent)
+                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse(movie.homepage))
+                        // Open with
+                        val chooser = Intent.createChooser(webIntent, "Open homepage with:")
+                        context.startActivity(chooser)
                     }
                 ) {
                     Text("Visit Official Homepage")
