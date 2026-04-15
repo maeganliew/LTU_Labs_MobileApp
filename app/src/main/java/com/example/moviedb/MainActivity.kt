@@ -53,6 +53,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import android.util.Log
+import com.example.moviedb.utils.SECRETS
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 sealed class Screen(val route: String) {
     object MovieList : Screen("movie_list")
@@ -68,24 +76,35 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MovieDBTheme {
-                val navController = rememberNavController() // The "Pilot" of your navigation
+                val navController = rememberNavController()
+                val moviesState = remember { mutableStateOf<List<Movie>>(emptyList()) }
+                val apiKey = SECRETS.API_KEY
+
+                LaunchedEffect(Unit) {
+                    try {
+                        val response = RetrofitClient.instance.getNowPlayingMovies(apiKey)
+                        moviesState.value = response.results
+                    } catch (e: Exception) {
+                        Log.e("API_ERROR", "Failed to fetch: ${e.message}")
+                    }
+                }
 
                 NavHost(
                     navController = navController,
                     startDestination = Screen.MovieList.route
                 ) {
-                    // Route 1: The List
+                    // The Grid
                     composable(Screen.MovieList.route) {
-                        MovieDBApp(navController = navController)
+                        MovieDBApp(movieList = moviesState.value, navController = navController)
                     }
 
-                    // Route 2: The Detail Screen
+                    // The Detail Screen
                     composable(Screen.MovieDetail.route) { backStackEntry ->
                         val movieId = backStackEntry.arguments?.getString("movieId")?.toLong()
                         MovieDetailScreen(movieId = movieId, navController = navController)
                     }
 
-                    // Route 3: The Empty Screen (Requirement)
+                    // The Empty Screen
                     composable(Screen.ThirdScreen.route) {
                         ThirdScreen(navController = navController)
                     }
@@ -96,9 +115,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MovieDBApp(navController: NavHostController, modifier: Modifier = Modifier) {
+fun MovieDBApp(movieList: List<Movie>, navController: NavHostController, modifier: Modifier = Modifier) {
     MovieList(
-        movieList = Movies.getMovies(),
+        movieList = movieList,
         modifier = modifier,
         navController = navController
     )
@@ -142,8 +161,8 @@ fun MovieListItemCard(movie: Movie,
                             + Constants.POSTER_IMAGE_BASE_WIDTH
                             + movie.posterPath,
                     contentDescription = movie.title,
-                    modifier = modifier
-                        .width(92.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .height(138.dp),
                     contentScale = ContentScale.Crop
                 )
@@ -177,6 +196,7 @@ fun MovieListItemCard(movie: Movie,
 fun Greeting(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     MovieDBApp(
+        movieList = emptyList(),
         navController = navController,
         modifier = modifier
     )
@@ -204,7 +224,17 @@ fun ThirdScreen(navController: NavHostController) {
 @Composable
 fun MovieDetailScreen(movieId: Long?, navController: NavHostController) {
     val context = LocalContext.current
-    val movie = Movies.getMovies().find { it.id == movieId }
+    var movieDetails by remember { mutableStateOf<Movie?>(null) }
+
+    LaunchedEffect(movieId) {
+        if (movieId != null) {
+            try {
+                movieDetails = RetrofitClient.instance.getMovieDetails(movieId, SECRETS.API_KEY)
+            } catch (e: Exception) {
+                Log.e("DETAIL_ERROR", "Error: ${e.message}")
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -227,20 +257,15 @@ fun MovieDetailScreen(movieId: Long?, navController: NavHostController) {
                 .padding(innerPadding) // Important: Use the Scaffold padding
                 .padding(24.dp)
         ) {
-            if (movie != null) {
+            if (movieDetails != null) {
+                val currentMovie = movieDetails!!
                 // Title
-                Text(text = movie.title, style = MaterialTheme.typography.headlineMedium)
+                Text(text = currentMovie.title, style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Movie genre
-                val genreNames = movie.genres.mapNotNull { genre ->
-                    (genre as? Map<*, *>)?.get("name")?.toString()
-                }
-
-                Text(
-                    text = "Genres: ${genreNames.joinToString(", ")}",
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                val genreNames = currentMovie.genres.joinToString(", ") { it.name }
+                Text(text = "Genres: $genreNames", style = MaterialTheme.typography.bodyLarge)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -248,7 +273,7 @@ fun MovieDetailScreen(movieId: Long?, navController: NavHostController) {
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
-                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse(movie.homepage))
+                        val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse(currentMovie.homepage))
                         // Open with
                         val chooser = Intent.createChooser(webIntent, "Open homepage with:")
                         context.startActivity(chooser)
@@ -263,7 +288,7 @@ fun MovieDetailScreen(movieId: Long?, navController: NavHostController) {
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {
-                        val imdbId = movie.imdbId // e.g., "tt0111161"
+                        val imdbId = currentMovie.imdbId // e.g., "tt0111161"
 
                         // This is the URI scheme that specificially tells the IMDB app to open a title page
                         val appUri = Uri.parse("imdb:///title/$imdbId/")
