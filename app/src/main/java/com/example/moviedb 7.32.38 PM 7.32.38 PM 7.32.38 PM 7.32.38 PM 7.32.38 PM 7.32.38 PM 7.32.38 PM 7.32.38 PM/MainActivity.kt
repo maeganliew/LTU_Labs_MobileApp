@@ -47,6 +47,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.graphics.Color
 
 sealed class Screen(val route: String) {
     object MovieList : Screen("movie_list")
@@ -100,14 +106,26 @@ fun MovieDBApp(navController: NavHostController, modifier: Modifier = Modifier) 
 
 // iterating movie list, call function to draw movie card
 @Composable
-fun MovieList(movieList: List<Movie>, navController: NavHostController, modifier: Modifier = Modifier) {
-    LazyColumn(modifier = modifier.fillMaxSize()) {
+fun MovieList(
+    movieList: List<Movie>,
+    navController: NavHostController,
+    modifier: Modifier = Modifier
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(8.dp)
+    ) {
         items(movieList) { movie ->
-            MovieListItemCard(movie, modifier = Modifier.padding(8.dp), navController = navController,)
+            // will automatically resize for the grid
+            MovieListItemCard(
+                movie = movie,
+                navController = navController,
+                modifier = Modifier.padding(4.dp)
+            )
         }
     }
 }
-
 // draw one card for each movie
 @Composable
 fun MovieListItemCard(movie: Movie,
@@ -117,8 +135,8 @@ fun MovieListItemCard(movie: Movie,
         // Add navigation
         navController.navigate(Screen.MovieDetail.createRoute(movie.id))
     }) {
-        Row {
-            Row {
+        Column {
+            Column {
                 AsyncImage(
                     model = Constants.POSTER_IMAGE_BASE_URL
                             + Constants.POSTER_IMAGE_BASE_WIDTH
