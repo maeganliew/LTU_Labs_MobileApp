@@ -261,6 +261,17 @@ fun MovieDetailScreen(movieId: Long?, navController: NavHostController) {
         ) {
             if (movieDetails != null) {
                 val currentMovie = movieDetails!!
+
+                AsyncImage(
+                    model = Constants.POSTER_IMAGE_BASE_URL + Constants.POSTER_IMAGE_BASE_WIDTH + (currentMovie.backdropPath ?: currentMovie.posterPath),
+                    contentDescription = currentMovie.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp)
+                        .padding(bottom = 16.dp),
+                    contentScale = ContentScale.Crop // fills width
+                )
+
                 // Title
                 Text(text = currentMovie.title, style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(8.dp))
